@@ -1,65 +1,87 @@
+{% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bio-Waste Yield Calculator</title>
+    <title>{{ t.title }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Leaflet Geocoder CSS (Search Bar) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
 </head>
 <body class="bg-light">
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
+                
+                <!-- Top Navigation: Manual Download & Language Toggle -->
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <a href="{% static 'biowaste_mvp_manual.pdf' %}" target="_blank" class="btn btn-sm btn-outline-info text-dark fw-bold border-2">
+                        {% if lang == 'de' %}📄 Projekt-Handbuch{% else %}📄 Project Manual{% endif %}
+                    </a>
+                    <div>
+                        <a href="?lang=en" class="btn btn-sm {% if lang == 'en' %}btn-primary{% else %}btn-outline-primary{% endif %} me-2">🇬🇧 EN</a>
+                        <a href="?lang=de" class="btn btn-sm {% if lang == 'de' %}btn-primary{% else %}btn-outline-primary{% endif %}">🇩🇪 DE</a>
+                    </div>
+                </div>
+
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-success text-white">
-                        <h4 class="mb-0">SDG 7 & 12: Bio-Waste Fermentation Calculator</h4>
+                        <h4 class="mb-0">{{ t.title }}</h4>
                     </div>
                     <div class="card-body">
                         <form method="POST">
                             {% csrf_token %}
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Organic Waste Type</label>
+                                <label class="form-label fw-bold">{{ t.waste_type }}</label>
                                 {{ form.waste_type }}
                             </div>
                             <div class="mb-3">
-                                <label class="form-label fw-bold">Quantity (kg)</label>
+                                <label class="form-label fw-bold">{{ t.qty }}</label>
                                 {{ form.quantity_kg }}
                             </div>
                             
-                            <!-- Hidden coordinate inputs -->
-                            {{ form.latitude }}
-                            {{ form.longitude }}
-                            
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <label class="form-label fw-bold mb-0">Select Waste Source Location</label>
-                                <button id="btn-locate" class="btn btn-sm btn-outline-secondary">📍 Locate Me</button>
+                            <!-- Visible Location and Coordinate Boxes -->
+                            <div class="row mb-3">
+                                <div class="col-12 mb-2">
+                                    <label class="form-label fw-bold">{{ t.captured_address }}</label>
+                                    {{ form.location_name }}
+                                </div>
+                                <div class="col">
+                                    <label class="form-label small text-muted">{{ t.latitude }}</label>
+                                    {{ form.latitude }}
+                                </div>
+                                <div class="col">
+                                    <label class="form-label small text-muted">{{ t.longitude }}</label>
+                                    {{ form.longitude }}
+                                </div>
                             </div>
                             
-                            <!-- Map Container -->
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label class="form-label fw-bold mb-0">{{ t.loc_label }}</label>
+                                <button id="btn-locate" class="btn btn-sm btn-outline-secondary">{{ t.locate_me }}</button>
+                            </div>
+                            
                             <div id="map" style="height: 300px; border-radius: 5px; border: 1px solid #ced4da;" class="mb-4"></div>
 
-                            <button type="submit" class="btn btn-success w-100">Calculate Potential Yield</button>
+                            <button type="submit" class="btn btn-success w-100">{{ t.calc_btn }}</button>
                         </form>
                     </div>
                 </div>
 
                 {% if result %}
                 <div class="alert alert-info shadow-sm" role="alert">
-                    <h5 class="alert-heading">Calculation Results</h5>
+                    <h5 class="alert-heading">{{ t.results }}</h5>
                     <hr>
-                    <p class="mb-1"><strong>Input Processed:</strong> {{ result.quantity_kg }} kg of {{ result.get_waste_type_display }}</p>
-                    <p class="mb-1"><strong>Estimated Biogas Yield:</strong> {{ result.estimated_biogas_yield }} m³</p>
-                    <p class="mb-1"><strong>Electrical Equivalent:</strong> {{ result.estimated_electricity_kwh }} kWh</p>
+                    <p class="mb-1"><strong>{{ t.input_proc }}:</strong> {{ result.quantity_kg }} kg - {{ result.translated_waste }}</p>
+                    <p class="mb-1"><strong>{{ t.est_yield }}:</strong> {{ result.estimated_biogas_yield }} m³</p>
+                    <p class="mb-1"><strong>{{ t.elec_eq }}:</strong> {{ result.estimated_electricity_kwh }} kWh</p>
                     {% if result.latitude and result.longitude %}
-                        <p class="mb-0"><strong>Location Tracked:</strong> Lat {{ result.latitude|floatformat:4 }}, Lng {{ result.longitude|floatformat:4 }}</p>
+                        <p class="mb-3"><strong>{{ t.loc_tracked }}:</strong> Lat {{ result.latitude|floatformat:4 }}, Lng {{ result.longitude|floatformat:4 }}</p>
                     {% endif %}
+                    
+                    <a href="{% url 'download_pdf' result.id %}" class="btn btn-primary btn-sm">{{ t.download_pdf }}</a>
                 </div>
-                <div class="d-grid gap-2">
-                    <a href="{% url 'download_pdf' result.id %}" class="btn btn-outline-primary">Download PDF Report</a>
                 {% endif %}
             </div>
         </div>
@@ -68,61 +90,48 @@
     <!-- Leaflet & Geocoder JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    
     <script>
-        // Initialize map centered on Vechta[cite: 6]
         var map = L.map('map').setView([52.728, 8.283], 12);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap'
-        }).addTo(map);
-
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }).addTo(map);
         var currentMarker = null;
 
-        // Reusable function to place marker and update hidden form fields
         function setLocation(lat, lng) {
-            if (currentMarker !== null) {
-                map.removeLayer(currentMarker);
-            }
+            if (currentMarker !== null) { map.removeLayer(currentMarker); }
             currentMarker = L.marker([lat, lng]).addTo(map);
-            
-            // Populate the hidden Django form fields
             document.getElementById('id_latitude').value = lat.toFixed(6);
             document.getElementById('id_longitude').value = lng.toFixed(6);
+
+            // Fetch the human-readable address with dynamic language loading text
+            document.getElementById('id_location_name').value = "{% if lang == 'de' %}Adresse wird geladen...{% else %}Loading address...{% endif %}";
+            
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+                .then(response => response.json())
+                .then(data => {
+                    if(data && data.address) {
+                        let area = data.address.suburb || data.address.village || data.address.town || data.address.city || "";
+                        let road = data.address.road || "";
+                        let text = road ? `${road}, ${area}` : area;
+                        document.getElementById('id_location_name').value = text || data.display_name;
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('id_location_name').value = "{% if lang == 'de' %}Adresssuche fehlgeschlagen{% else %}Address lookup failed{% endif %}";
+                });
         }
 
-        // 1. Handle standard map clicks
-        map.on('click', function(e) {
-            setLocation(e.latlng.lat, e.latlng.lng);
-        });
-
-        // 2. Add Search Bar (Geocoder)
-        L.Control.geocoder({
-            defaultMarkGeocode: false
-        })
-        .on('markgeocode', function(e) {
+        map.on('click', function(e) { setLocation(e.latlng.lat, e.latlng.lng); });
+        L.Control.geocoder({ defaultMarkGeocode: false }).on('markgeocode', function(e) {
             var latlng = e.geocode.center;
             map.setView(latlng, 14);
             setLocation(latlng.lat, latlng.lng);
-        })
-        .addTo(map);
+        }).addTo(map);
 
-        // 3. Handle 'Locate Me' Button
         document.getElementById('btn-locate').addEventListener('click', function(e) {
-            e.preventDefault(); // Prevents form submission
+            e.preventDefault(); 
             map.locate({setView: true, maxZoom: 15});
         });
-
-        // Triggered when map.locate() is successful
-        map.on('locationfound', function(e) {
-            setLocation(e.latlng.lat, e.latlng.lng);
-        });
-
-        // Triggered if user denies location permission
-        map.on('locationerror', function(e) {
-            alert("Could not access your location. Please ensure location services are enabled or use the search bar.");
-        });
+        map.on('locationfound', function(e) { setLocation(e.latlng.lat, e.latlng.lng); });
+        map.on('locationerror', function(e) { alert("Location access denied."); });
     </script>
 </body>
 </html>

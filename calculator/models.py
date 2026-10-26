@@ -11,6 +11,8 @@ class WasteInput(models.Model):
     ]
     latitude = models.FloatField(null=True, blank=True, help_text="Latitude of waste source")
     longitude = models.FloatField(null=True, blank=True, help_text="Longitude of waste source")
+    # Add this right below your latitude/longitude fields
+    location_name = models.CharField(max_length=255, null=True, blank=True, help_text="Human readable location")
     
     # Baseline yield estimates (m³ of biogas per kg of fresh waste)
     # These can be refined later with precise lab parameters
